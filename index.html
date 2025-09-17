@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Sentiment Analyzer</title>
+    <style>
+        /* Base styling */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        /* Form elements */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        /* Review display */
+        .review-container {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        
+        .review-text {
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+        
+        /* Sentiment display */
+        .sentiment-container {
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .negative {
+            background-color: #ffeaea;
+            color: #e74c3c;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .neutral {
+            background-color: #fff9e6;
+            color: #f39c12;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .positive {
+            background-color: #eaffea;
+            color: #27ae60;
+            border: 1px solid #c6f5c6;
+        }
+        
+        /* Loading indicator */
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loader-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error message */
+        .error {
+            color: #e74c3c;
+            padding: 10px;
+            background-color: #ffeaea;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Review Sentiment Analyzer</h1>
+        
+        <!-- API Token Input -->
+        <div class="input-group">
+            <label for="api-token">Hugging Face API Token</label>
+            <input type="text" id="api-token" placeholder="Paste your Hugging Face API token here">
+            <p style="font-size: 12px; color: #7f8c8d; margin-top: 5px;">
+                Your token is only used for this session and is not stored anywhere.
+            </p>
+        </div>
+        
+        <!-- Analyze Button -->
+        <button id="analyze-btn">Analyze Random Review</button>
+        
+        <!-- Error Message -->
+        <div id="error" class="error"></div>
+        
+        <!-- Loading Indicator -->
+        <div id="loader" class="loader">
+            <div class="loader-spinner"></div>
+            <p>Analyzing sentiment...</p>
+        </div>
+        
+        <!-- Review Display -->
+        <div id="review-container" class="review-container" style="display: none;">
+            <h3>Review to Analyze:</h3>
+            <p id="review-text" class="review-text"></p>
+        </div>
+        
+        <!-- Sentiment Result -->
+        <div id="sentiment-container" class="sentiment-container">
+            <h3>Sentiment Analysis Result:</h3>
+            <p id="sentiment-result"></p>
+            <p id="confidence-score"></p>
+        </div>
+        
+        <footer>
+            <p>Powered by Hugging Face's <em>cardiffnlp/twitter-roberta-base-sentiment-latest</em> model</p>
+        </footer>
+    </div>
+
+    <script>
+        // Sample reviews for demonstration
+        const sampleReviews = [
+            "This product is absolutely amazing! It exceeded all my expectations and I would definitely recommend it to anyone.",
+            "The service was okay, nothing special but not terrible either. It was exactly what I expected for the price.",
+            "I'm extremely disappointed with this purchase. The quality is poor and it broke after just two days of use.",
+            "This is hands down the best thing I've ever bought! The value for money is incredible.",
+            "The product arrived later than expected and was damaged. Customer service was unhelpful when I contacted them.",
+            "It does what it's supposed to do, but the interface is confusing and not user-friendly.",
+            "Outstanding quality and fantastic customer support. Will definitely be purchasing from this company again!",
+            "Mediocre at best. I've seen better products for half the price elsewhere.",
+            "Complete waste of money. Don't believe the hype surrounding this product.",
+            "Good value for the price, but there's room for improvement in the design."
+        ];
+
+        // DOM elements
+        const apiTokenInput = document.getElementById('api-token');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const reviewContainer = document.getElementById('review-container');
+        const reviewText = document.getElementById('review-text');
+        const sentimentContainer = document.getElementById('sentiment-container');
+        const sentimentResult = document.getElementById('sentiment-result');
+        const confidenceScore = document.getElementById('confidence-score');
+        const loader = document.getElementById('loader');
+        const errorDiv = document.getElementById('error');
+
+        // Event listener for the analyze button
+        analyzeBtn.addEventListener('click', async () => {
+            // Reset previous results and errors
+            hideError();
+            sentimentContainer.style.display = 'none';
+            
+            const apiToken = apiTokenInput.value.trim();
+            
+            // Validate API token
+            if (!apiToken) {
+                showError('Please enter your Hugging Face API token');
+                return;
+            }
+            
+            // Show loading indicator
+            loader.style.display = 'block';
+            analyzeBtn.disabled = true;
+            
+            try {
+                // Select a random review
+                const randomReview = sampleReviews[Math.floor(Math.random() * sampleReviews.length)];
+                
+                // Display the review
+                reviewText.textContent = randomReview;
+                reviewContainer.style.display = 'block';
+                
+                // Analyze sentiment using Hugging Face API
+                const sentiment = await analyzeSentiment(randomReview, apiToken);
+                
+                // Display the results
+                displaySentiment(sentiment);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                // Hide loading indicator
+                loader.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        /**
+         * Analyze the sentiment of a review using Hugging Face API
+         * @param {string} review - The review text to analyze
+         * @param {string} apiToken - Hugging Face API token
+         * @returns {Promise<Object>} - Sentiment analysis results
+         */
+        async function analyzeSentiment(review, apiToken) {
+            // API endpoint for the specific model
+            const API_URL = "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment-latest";
+            
+            // Request headers
+            const headers = {
+                "Authorization": `Bearer ${apiToken}`,
+                "Content-Type": "application/json"
+            };
+            
+            // Request payload
+            const payload = {
+                inputs: review
+            };
+            
+            try {
+                // Make the API request
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+                
+                // Check if the request was successful
+                if (!response.ok) {
+                    // Handle different HTTP error statuses
+                    if (response.status === 401) {
+                        throw new Error("Invalid API token. Please check your Hugging Face API token.");
+                    } else if (response.status === 503) {
+                        throw new Error("Model is loading. Please try again in a few moments.");
+                    } else {
+                        throw new Error(`API request failed with status ${response.status}`);
+                    }
+                }
+                
+                // Parse the response
+                const data = await response.json();
+                
+                // Handle cases where the API returns an error
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // The model returns an array of arrays with sentiment scores
+                // The order is: negative, neutral, positive
+                const scores = data[0];
+                
+                // Find the sentiment with the highest score
+                let maxScore = 0;
+                let sentimentLabel = '';
+                
+                scores.forEach(score => {
+                    if (score.score > maxScore) {
+                        maxScore = score.score;
+                        sentimentLabel = score.label;
+                    }
+                });
+                
+                // Convert label to more readable format
+                let readableLabel;
+                switch(sentimentLabel) {
+                    case 'LABEL_0':
+                        readableLabel = 'Negative';
+                        break;
+                    case 'LABEL_1':
+                        readableLabel = 'Neutral';
+                        break;
+                    case 'LABEL_2':
+                        readableLabel = 'Positive';
+                        break;
+                    default:
+                        readableLabel = sentimentLabel;
+                }
+                
+                return {
+                    label: readableLabel,
+                    score: maxScore
+                };
+            } catch (error) {
+                throw new Error(`Sentiment analysis failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Display the sentiment analysis results
+         * @param {Object} sentiment - Sentiment analysis result with label and score
+         */
+        function displaySentiment(sentiment) {
+            // Set the sentiment text and confidence score
+            sentimentResult.textContent = `Sentiment: ${sentiment.label}`;
+            confidenceScore.textContent = `Confidence: ${(sentiment.score * 100).toFixed(2)}%`;
+            
+            // Apply appropriate styling based on sentiment
+            sentimentContainer.className = 'sentiment-container';
+            switch(sentiment.label) {
+                case 'Negative':
+                    sentimentContainer.classList.add('negative');
+                    break;
+                case 'Neutral':
+                    sentimentContainer.classList.add('neutral');
+                    break;
+                case 'Positive':
+                    sentimentContainer.classList.add('positive');
+                    break;
+            }
+            
+            // Show the sentiment container
+            sentimentContainer.style.display = 'block';
+        }
+
+        /**
+         * Display an error message
+         * @param {string} message - Error message to display
+         */
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        /**
+         * Hide the error message
+         */
+        function hideError() {
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+        }
+    </script>
+</body>
+</html>
