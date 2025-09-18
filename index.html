@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DeepSeek Chat — Random Review Sentiment</title>
+
+  <!-- Papa Parse (required) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <!-- Font Awesome (icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --accent:#4f46e5;
+      --muted:#94a3b8;
+      --success:#10b981;
+      --danger:#ef4444;
+      --neutral:#f59e0b;
+      color-scheme: dark;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #071024 0%, #081326 100%);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{
+      max-width:900px;
+      margin:48px auto;
+      padding:28px;
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      border-radius:12px;
+      padding:22px;
+      box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+    }
+    header{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:18px;
+    }
+    header h1{
+      font-size:20px;
+      margin:0;
+      letter-spacing:0.2px;
+    }
+    header p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .controls{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+    .input-group{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      background:rgba(255,255,255,0.02);
+      padding:8px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    input[type="text"]{
+      background:transparent;
+      border:0;
+      outline:0;
+      color:inherit;
+      padding:8px;
+      min-width:280px;
+      font-size:14px;
+    }
+    button{
+      background:linear-gradient(90deg,var(--accent),#06b6d4);
+      color:white;
+      border:0;
+      padding:10px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      box-shadow:0 6px 18px rgba(79,70,229,0.18);
+    }
+    button:disabled{
+      opacity:0.5;
+      cursor:not-allowed;
+      box-shadow:none;
+    }
+
+    .status{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .review-box{
+      margin-top:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border-radius:10px;
+      padding:18px;
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .icon{
+      width:56px;
+      height:56px;
+      min-width:56px;
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:22px;
+      background:rgba(255,255,255,0.02);
+      color:var(--muted);
+    }
+    .review-content{
+      flex:1;
+    }
+    .review-text{
+      font-size:15px;
+      line-height:1.5;
+      color:#e6eef8;
+      margin:0 0 8px 0;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .meta{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .error{
+      color:var(--danger);
+      margin-top:10px;
+      font-weight:600;
+    }
+    .hint{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    footer{
+      margin-top:18px;
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+    }
+
+    @media (max-width:640px){
+      .controls{flex-direction:column;align-items:stretch}
+      input[type="text"]{min-width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="main">
+      <header>
+        <div>
+          <h1>DeepSeek Chat — Random Review Sentiment</h1>
+          <p>Load reviews_test.tsv (must be in same repo). Uses Hugging Face Inference API and Papa Parse.</p>
+        </div>
+      </header>
+
+      <div class="controls" id="controls">
+        <div class="input-group" style="flex:1;">
+          <label for="hfToken" class="hint" style="margin-right:8px;"><i class="fa-solid fa-key"></i></label>
+          <input id="hfToken" type="text" placeholder="Hugging Face API token (optional for free tier)" aria-label="Hugging Face API token">
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button id="randomBtn">Analyze Random Review</button>
+          <button id="reloadBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);box-shadow:none;">Reload TSV</button>
+        </div>
+      </div>
+
+      <div class="status" id="status">Loading reviews_test.tsv...</div>
+
+      <div id="reviewArea" style="display:none;">
+        <div class="review-box" id="reviewBox">
+          <div class="icon" id="sentIcon"><i class="fa-solid fa-spinner fa-pulse"></i></div>
+          <div class="review-content">
+            <p class="review-text" id="reviewText">—</p>
+            <div class="meta">
+              <span id="labelText">Label: —</span>
+              <span id="scoreText">Score: —</span>
+              <span id="sourceText" style="margin-left:auto;" class="hint">Model: siebert/sentiment-roberta-large-english</span>
+            </div>
+          </div>
+        </div>
+        <div class="error" id="error" style="display:none;"></div>
+      </div>
+
+      <footer>
+        Make sure reviews_test.tsv is present in the repository root. TSV must have a "text" column.
+      </footer>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
