@@ -1,139 +1,287 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const apiTokenInput = document.getElementById('apiToken');
-    const reviewTextElement = document.getElementById('reviewText');
-    const reviewContainer = document.getElementById('reviewContainer');
-    const resultContainer = document.getElementById('resultContainer');
-    const sentimentIcon = document.getElementById('sentimentIcon');
-    const sentimentLabel = document.getElementById('sentimentLabel');
-    const errorContainer = document.getElementById('errorContainer');
-    const loadingElement = document.getElementById('loading');
-    
-    let reviews = [];
-    
-    // Load and parse the TSV file
-    fetch('reviews_test.tsv')
-        .then(response => response.text())
-        .then(tsvData => {
-            const parsedData = Papa.parse(tsvData, {
-                header: true,
-                delimiter: '\t',
-                skipEmptyLines: true
-            });
-            
-            if (parsedData.errors.length > 0) {
-                throw new Error('Error parsing TSV file: ' + parsedData.errors[0].message);
-            }
-            
-            reviews = parsedData.data.map(row => row.text).filter(text => text && text.trim() !== '');
-            
-            if (reviews.length === 0) {
-                throw new Error('No reviews found in the TSV file');
-            }
-            
-            analyzeBtn.disabled = false;
-        })
-        .catch(error => {
-            showError('Failed to load reviews: ' + error.message);
-            analyzeBtn.disabled = true;
-        });
-    
-    analyzeBtn.addEventListener('click', function() {
-        // Reset UI
-        hideError();
-        reviewContainer.style.display = 'none';
-        resultContainer.style.display = 'none';
-        loadingElement.style.display = 'block';
-        
-        // Select a random review
-        const randomIndex = Math.floor(Math.random() * reviews.length);
-        const randomReview = reviews[randomIndex];
-        
-        // Display the review
-        reviewTextElement.textContent = randomReview;
-        reviewContainer.style.display = 'block';
-        
-        // Analyze sentiment
-        analyzeSentiment(randomReview, apiTokenInput.value.trim())
-            .then(result => {
-                displayResult(result);
-                loadingElement.style.display = 'none';
-            })
-            .catch(error => {
-                showError('Analysis failed: ' + error.message);
-                loadingElement.style.display = 'none';
-            });
-    });
-    
-    function analyzeSentiment(text, apiToken) {
-        const headers = {
-            'Content-Type': 'application/json',
-        };
-        
-        if (apiToken) {
-            headers['Authorization'] = `Bearer ${apiToken}`;
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Sentiment Analyzer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        return fetch('https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english', {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify({ inputs: text })
-        })
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 503) {
-                    throw new Error('Model is loading, please try again in a few moments');
-                } else if (response.status === 429) {
-                    throw new Error('Rate limit exceeded. Please try again later or add your API token');
-                } else {
-                    throw new Error(`API error: ${response.status} ${response.statusText}`);
-                }
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                throw new Error('Invalid response from API');
-            }
-            
-            const result = data[0][0];
-            return {
-                label: result.label,
-                score: result.score
-            };
-        });
-    }
-    
-    function displayResult(result) {
-        let iconClass, icon, labelText;
-        
-        if (result.label === 'POSITIVE' && result.score > 0.5) {
-            iconClass = 'positive';
-            icon = '<i class="fas fa-thumbs-up"></i>';
-            labelText = `Positive (confidence: ${(result.score * 100).toFixed(2)}%)`;
-        } else if (result.label === 'NEGATIVE' && result.score > 0.5) {
-            iconClass = 'negative';
-            icon = '<i class="fas fa-thumbs-down"></i>';
-            labelText = `Negative (confidence: ${(result.score * 100).toFixed(2)}%)`;
-        } else {
-            iconClass = 'neutral';
-            icon = '<i class="fas fa-question-circle"></i>';
-            labelText = `Neutral (confidence: ${(result.score * 100).toFixed(2)}%)`;
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
-        sentimentIcon.className = `sentiment-icon ${iconClass}`;
-        sentimentIcon.innerHTML = icon;
-        sentimentLabel.textContent = labelText;
-        resultContainer.style.display = 'block';
-    }
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a4a4a;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+        
+        .description {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .api-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .api-section h2 {
+            margin-bottom: 15px;
+            color: #4a4a4a;
+            font-size: 1.4rem;
+        }
+        
+        .api-input {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        input[type="text"] {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        
+        button {
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .review-section {
+            margin-bottom: 25px;
+        }
+        
+        .review-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .review-text {
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #444;
+        }
+        
+        .sentiment-result {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .positive {
+            color: #28a745;
+            border: 2px solid #28a745;
+        }
+        
+        .negative {
+            color: #dc3545;
+            border: 2px solid #dc3545;
+        }
+        
+        .neutral {
+            color: #ffc107;
+            border: 2px solid #ffc107;
+        }
+        
+        .icon {
+            font-size: 24px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #4a4a4a;
+        }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                width: 95%;
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Review Sentiment Analyzer</h1>
+        <p class="description">Analyze the sentiment of product reviews using Hugging Face's AI model</p>
+        
+        <div class="api-section">
+            <h2>Hugging Face API Setup</h2>
+            <div class="api-input">
+                <label for="api-token">Enter your Hugging Face API Token:</label>
+                <input type="text" id="api-token" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                <p><small>Your token is stored only in your browser and is never sent to our servers.</small></p>
+            </div>
+        </div>
+        
+        <div class="review-section">
+            <button id="analyze-btn">Analyze Random Review</button>
+            
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Analyzing sentiment...</p>
+            </div>
+            
+            <div class="error" id="error-message"></div>
+            
+            <div class="review-card">
+                <h3>Selected Review:</h3>
+                <p class="review-text" id="review-text">Click the button above to analyze a random review</p>
+            </div>
+            
+            <div class="sentiment-result" id="sentiment-result">
+                <i class="fas fa-question-circle icon"></i>
+                <span>Sentiment will appear here</span>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to get a Hugging Face API Token:</h3>
+            <ol>
+                <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
+                <li>Navigate to your profile settings and access tokens section</li>
+                <li>Generate a new token with read permissions</li>
+                <li>Copy the token and paste it in the field above</li>
+            </ol>
+        </div>
+    </div>
     
-    function showError(message) {
-        errorContainer.textContent = message;
-        errorContainer.style.display = 'block';
-    }
-    
-    function hideError() {
-        errorContainer.style.display = 'none';
-        errorContainer.textContent = '';
-    }
-});
+    <footer>
+        <p>This app uses the distilbert-base-uncased-finetuned-sst-2-english model from Hugging Face</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
