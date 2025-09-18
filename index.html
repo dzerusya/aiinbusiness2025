@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анализатор настроений в отзывах</title>
+    <title>Review Sentiment Analyzer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -13,187 +15,160 @@
         }
         
         body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
-            line-height: 1.6;
-            padding: 20px;
             min-height: 100vh;
+            padding: 20px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
         }
         
         .container {
-            max-width: 800px;
-            width: 100%;
-            padding: 30px;
-            background-color: white;
+            background-color: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+            padding: 30px;
+            margin: 20px 0;
         }
         
         h1 {
             text-align: center;
-            margin-bottom: 30px;
-            color: #2c3e50;
+            color: #4a4a4a;
+            margin-bottom: 20px;
             font-size: 2.2rem;
-            position: relative;
-            padding-bottom: 15px;
         }
         
-        h1:after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 4px;
-            background: linear-gradient(to right, #3498db, #2ecc71);
-            border-radius: 2px;
+        .description {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.6;
         }
         
-        .input-group {
+        .api-section {
             margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
         }
         
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 1.1rem;
+        .api-section h2 {
+            margin-bottom: 15px;
+            color: #4a4a4a;
+            font-size: 1.4rem;
+        }
+        
+        .api-input {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
         input[type="text"] {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #ddd;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
-            transition: all 0.3s;
+            transition: border-color 0.3s;
         }
         
         input[type="text"]:focus {
-            border-color: #3498db;
+            border-color: #667eea;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-        }
-        
-        .token-note {
-            font-size: 14px;
-            color: #7f8c8d;
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-        }
-        
-        .token-note svg {
-            margin-right: 8px;
-            min-width: 18px;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
         }
         
         button {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(to right, #3498db, #2ecc71);
+            background: linear-gradient(to right, #667eea, #764ba2);
             color: white;
             border: none;
+            padding: 12px 20px;
             border-radius: 8px;
-            font-size: 18px;
-            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
         }
         
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         
         button:active {
             transform: translateY(0);
         }
         
-        button:disabled {
-            background: linear-gradient(to right, #95a5a6, #bdc3c7);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .review-section {
+            margin-bottom: 25px;
         }
         
-        .review-container {
-            margin: 30px 0;
-            padding: 25px;
-            background-color: #f8f9fa;
-            border-left: 5px solid #3498db;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        .review-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
         
         .review-text {
-            font-style: italic;
+            line-height: 1.6;
             margin-bottom: 15px;
-            font-size: 18px;
-            line-height: 1.5;
-            color: #2c3e50;
-        }
-        
-        .sentiment-container {
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: bold;
-            display: none;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-        }
-        
-        .negative {
-            background: linear-gradient(to right, #ffeaea, #ffd6d6);
-            color: #e74c3c;
-            border: 2px solid #f5c6cb;
-        }
-        
-        .neutral {
-            background: linear-gradient(to right, #fff9e6, #fff4d1);
-            color: #f39c12;
-            border: 2px solid #ffeaa7;
-        }
-        
-        .positive {
-            background: linear-gradient(to right, #eaffea, #d6ffd6);
-            color: #27ae60;
-            border: 2px solid #c6f5c6;
+            font-size: 16px;
+            color: #444;
         }
         
         .sentiment-result {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        
-        .confidence-score {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            font-weight: bold;
             font-size: 18px;
-            font-weight: normal;
-            opacity: 0.9;
         }
         
-        .loader {
+        .positive {
+            color: #28a745;
+            border: 2px solid #28a745;
+        }
+        
+        .negative {
+            color: #dc3545;
+            border: 2px solid #dc3545;
+        }
+        
+        .neutral {
+            color: #ffc107;
+            border: 2px solid #ffc107;
+        }
+        
+        .icon {
+            font-size: 24px;
+        }
+        
+        .loading {
             display: none;
             text-align: center;
-            margin: 30px 0;
+            margin: 20px 0;
         }
         
-        .loader-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto;
         }
         
         @keyframes spin {
@@ -201,59 +176,28 @@
             100% { transform: rotate(360deg); }
         }
         
-        .loader p {
-            font-size: 16px;
-            color: #7f8c8d;
-        }
-        
         .error {
-            color: #e74c3c;
-            padding: 15px;
-            background-color: #ffeaea;
-            border-radius: 8px;
-            margin: 20px 0;
+            color: #dc3545;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            margin: 10px 0;
             display: none;
-            border-left: 5px solid #e74c3c;
-            font-weight: 500;
-        }
-        
-        .error a {
-            color: #e74c3c;
-            font-weight: bold;
-            text-decoration: underline;
-        }
-        
-        footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #7f8c8d;
-            font-size: 14px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-        }
-        
-        footer em {
-            color: #3498db;
-            font-style: italic;
         }
         
         .instructions {
-            background-color: #e3f2fd;
+            margin-top: 30px;
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border-left: 5px solid #3498db;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
         }
         
         .instructions h3 {
             margin-bottom: 10px;
-            color: #2c3e50;
-            display: flex;
-            align-items: center;
-        }
-        
-        .instructions h3 svg {
-            margin-right: 10px;
+            color: #4a4a4a;
         }
         
         .instructions ol {
@@ -262,21 +206,18 @@
         
         .instructions li {
             margin-bottom: 8px;
-            line-height: 1.5;
         }
         
-        .instructions a {
-            color: #3498db;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        
-        .instructions a:hover {
-            text-decoration: underline;
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
         }
         
         @media (max-width: 600px) {
             .container {
+                width: 95%;
                 padding: 20px;
             }
             
@@ -284,249 +225,62 @@
                 font-size: 1.8rem;
             }
             
-            .review-text {
-                font-size: 16px;
-            }
-            
-            .sentiment-result {
-                font-size: 20px;
-            }
-            
-            .confidence-score {
-                font-size: 16px;
+            button {
+                width: 100%;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Анализатор настроений в отзывах</h1>
+        <h1>Review Sentiment Analyzer</h1>
+        <p class="description">Analyze the sentiment of product reviews using Hugging Face's AI model</p>
         
-        <div class="instructions">
-            <h3>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                Как использовать этот инструмент
-            </h3>
-            <ol>
-                <li>Получите ваш API-токен в <a href="https://huggingface.co/settings/tokens" target="_blank">настройках Hugging Face</a></li>
-                <li>Примите условия использования модели на <a href="https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest" target="_blank">странице модели</a></li>
-                <li>Вставьте ваш токен в поле ниже</li>
-                <li>Нажмите "Анализировать случайный отзыв" для тестирования</li>
-            </ol>
-        </div>
-        
-        <div class="input-group">
-            <label for="api-token">API-токен Hugging Face</label>
-            <input type="text" id="api-token" placeholder="Вставьте ваш Hugging Face API-токен здесь" value="hf_cOeoflFYkaWyVpGbtft.dvcGyzSfdjohQEM">
-            <div class="token-note">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <span>Ваш токен используется только для этого сеанса и нигде не хранится.</span>
+        <div class="api-section">
+            <h2>Hugging Face API Setup</h2>
+            <div class="api-input">
+                <label for="api-token">Enter your Hugging Face API Token:</label>
+                <input type="text" id="api-token" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                <p><small>Your token is stored only in your browser and is never sent to our servers.</small></p>
             </div>
         </div>
         
-        <button id="analyze-btn">Анализировать случайный отзыв</button>
-        
-        <div id="error" class="error"></div>
-        
-        <div id="loader" class="loader">
-            <div class="loader-spinner"></div>
-            <p>Анализ настроений...</p>
+        <div class="review-section">
+            <button id="analyze-btn">Analyze Random Review</button>
+            
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Analyzing sentiment...</p>
+            </div>
+            
+            <div class="error" id="error-message"></div>
+            
+            <div class="review-card">
+                <h3>Selected Review:</h3>
+                <p class="review-text" id="review-text">Click the button above to analyze a random review</p>
+            </div>
+            
+            <div class="sentiment-result" id="sentiment-result">
+                <i class="fas fa-question-circle icon"></i>
+                <span>Sentiment will appear here</span>
+            </div>
         </div>
         
-        <div id="review-container" class="review-container" style="display: none;">
-            <h3>Отзыв для анализа:</h3>
-            <p id="review-text" class="review-text"></p>
+        <div class="instructions">
+            <h3>How to get a Hugging Face API Token:</h3>
+            <ol>
+                <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
+                <li>Navigate to your profile settings and access tokens section</li>
+                <li>Generate a new token with read permissions</li>
+                <li>Copy the token and paste it in the field above</li>
+            </ol>
         </div>
-        
-        <div id="sentiment-container" class="sentiment-container">
-            <h3>Результат анализа настроений:</h3>
-            <p id="sentiment-result" class="sentiment-result"></p>
-            <p id="confidence-score" class="confidence-score"></p>
-        </div>
-        
-        <footer>
-            <p>Работает на основе модели Hugging Face <em>cardiffnlp/twitter-roberta-base-sentiment-latest</em></p>
-        </footer>
     </div>
+    
+    <footer>
+        <p>This app uses the distilbert-base-uncased-finetuned-sst-2-english model from Hugging Face</p>
+    </footer>
 
-    <script>
-        const sampleReviews = [
-            "Этот продукт абсолютно потрясающий! Он превзошел все мои ожидания, и я определенно рекомендую его всем.",
-            "Обслуживание было нормальным, ничего особенного, но и не ужасное. Именно то, что я ожидал за такую цену.",
-            "Я крайне разочарован этой покупкой. Качество низкое, и он сломался после всего двух дней использования.",
-            "Это, без сомнения, лучшая вещь, которую я когда-либо покупал! Соотношение цены и качества невероятное.",
-            "Товар прибыл позже, чем ожидалось, и был поврежден. Служба поддержки не помогла, когда я связался с ними.",
-            "Он делает то, что должен, но интерфейс запутанный и неудобный для пользователя.",
-            "Выдающееся качество и фантастическая поддержка клиентов. Определенно буду покупать у этой компании снова!",
-            "Посредственно, в лучшем случае. Я видел лучшие продукты за половину цены в других местах.",
-            "Полная трата денег. Не верьте шумихе вокруг этого продукта.",
-            "Хорошее соотношение цены и качества, но есть возможности для улучшения дизайна."
-        ];
-
-        const apiTokenInput = document.getElementById('api-token');
-        const analyzeBtn = document.getElementById('analyze-btn');
-        const reviewContainer = document.getElementById('review-container');
-        const reviewText = document.getElementById('review-text');
-        const sentimentContainer = document.getElementById('sentiment-container');
-        const sentimentResult = document.getElementById('sentiment-result');
-        const confidenceScore = document.getElementById('confidence-score');
-        const loader = document.getElementById('loader');
-        const errorDiv = document.getElementById('error');
-
-        analyzeBtn.addEventListener('click', async () => {
-            hideError();
-            sentimentContainer.style.display = 'none';
-            
-            const apiToken = apiTokenInput.value.trim();
-            
-            if (!apiToken) {
-                showError('Пожалуйста, введите ваш Hugging Face API-токен');
-                return;
-            }
-            
-            if (!apiToken.startsWith('hf_')) {
-                showError('Неверный формат API-токена. Токены Hugging Face обычно начинаются с "hf_".');
-                return;
-            }
-            
-            loader.style.display = 'block';
-            analyzeBtn.disabled = true;
-            
-            try {
-                const randomReview = sampleReviews[Math.floor(Math.random() * sampleReviews.length)];
-                
-                reviewText.textContent = randomReview;
-                reviewContainer.style.display = 'block';
-                
-                const sentiment = await analyzeSentiment(randomReview, apiToken);
-                
-                displaySentiment(sentiment);
-            } catch (error) {
-                showError(error.message);
-                reviewContainer.style.display = 'none';
-            } finally {
-                loader.style.display = 'none';
-                analyzeBtn.disabled = false;
-            }
-        });
-
-        async function analyzeSentiment(review, apiToken) {
-            const API_URL = "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment-latest";
-            
-            const headers = {
-                "Authorization": `Bearer ${apiToken}`,
-                "Content-Type": "application/json"
-            };
-            
-            const payload = {
-                inputs: review
-            };
-            
-            try {
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: headers,
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error("Неверный API-токен. Пожалуйста, проверьте ваш Hugging Face API-токен.");
-                    } else if (response.status === 403) {
-                        throw new Error(`Ошибка доступа (403). Возможно, вам нужно принять условия использования модели. 
-                            <a href="https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest" target="_blank">Принять условия использования модели</a>`);
-                    } else if (response.status === 503) {
-                        throw new Error("Модель загружается. Пожалуйста, попробуйте еще раз через несколько мгновений.");
-                    } else {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error || `Запрос к API не выполнен со статусом ${response.status}`);
-                    }
-                }
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                const scores = data[0];
-                
-                let maxScore = 0;
-                let sentimentLabel = '';
-                
-                scores.forEach(score => {
-                    if (score.score > maxScore) {
-                        maxScore = score.score;
-                        sentimentLabel = score.label;
-                    }
-                });
-                
-                let readableLabel;
-                switch(sentimentLabel) {
-                    case 'LABEL_0':
-                        readableLabel = 'Негативный';
-                        break;
-                    case 'LABEL_1':
-                        readableLabel = 'Нейтральный';
-                        break;
-                    case 'LABEL_2':
-                        readableLabel = 'Позитивный';
-                        break;
-                    default:
-                        readableLabel = sentimentLabel;
-                }
-                
-                return {
-                    label: readableLabel,
-                    score: maxScore
-                };
-            } catch (error) {
-                if (error.message.includes('Failed to fetch')) {
-                    throw new Error('Ошибка сети. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.');
-                }
-                throw new Error(`Анализ настроений не удался: ${error.message}`);
-            }
-        }
-
-        function displaySentiment(sentiment) {
-            sentimentResult.textContent = `Настроение: ${sentiment.label}`;
-            confidenceScore.textContent = `Уверенность: ${(sentiment.score * 100).toFixed(2)}%`;
-            
-            sentimentContainer.className = 'sentiment-container';
-            switch(sentiment.label) {
-                case 'Негативный':
-                    sentimentContainer.classList.add('negative');
-                    break;
-                case 'Нейтральный':
-                    sentimentContainer.classList.add('neutral');
-                    break;
-                case 'Позитивный':
-                    sentimentContainer.classList.add('positive');
-                    break;
-            }
-            
-            sentimentContainer.style.display = 'block';
-        }
-
-        function showError(message) {
-            errorDiv.innerHTML = message;
-            errorDiv.style.display = 'block';
-            
-            setTimeout(hideError, 7000);
-        }
-
-        function hideError() {
-            errorDiv.style.display = 'none';
-            errorDiv.textContent = '';
-        }
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
