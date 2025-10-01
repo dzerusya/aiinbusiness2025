@@ -1,219 +1,164 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DeepSeek Chat — Random Review Sentiment</title>
-
-  <!-- Papa Parse (required) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-  <!-- Font Awesome (icons) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <style>
-    :root{
-      --bg:#0f1724;
-      --card:#0b1220;
-      --accent:#4f46e5;
-      --muted:#94a3b8;
-      --success:#10b981;
-      --danger:#ef4444;
-      --neutral:#f59e0b;
-      color-scheme: dark;
-    }
-    html,body{
-      height:100%;
-      margin:0;
-      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(180deg, #071024 0%, #081326 100%);
-      color:#e6eef8;
-      -webkit-font-smoothing:antialiased;
-    }
-    .wrap{
-      max-width:900px;
-      margin:48px auto;
-      padding:28px;
-    }
-    .card{
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      border:1px solid rgba(255,255,255,0.03);
-      border-radius:12px;
-      padding:22px;
-      box-shadow: 0 6px 30px rgba(2,6,23,0.6);
-    }
-    header{
-      display:flex;
-      align-items:center;
-      gap:14px;
-      margin-bottom:18px;
-    }
-    header h1{
-      font-size:20px;
-      margin:0;
-      letter-spacing:0.2px;
-    }
-    header p{
-      margin:0;
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    .controls{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:18px;
-    }
-    .input-group{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      background:rgba(255,255,255,0.02);
-      padding:8px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.02);
-    }
-    input[type="text"]{
-      background:transparent;
-      border:0;
-      outline:0;
-      color:inherit;
-      padding:8px;
-      min-width:280px;
-      font-size:14px;
-    }
-    button{
-      background:linear-gradient(90deg,var(--accent),#06b6d4);
-      color:white;
-      border:0;
-      padding:10px 14px;
-      border-radius:8px;
-      cursor:pointer;
-      font-weight:600;
-      box-shadow:0 6px 18px rgba(79,70,229,0.18);
-    }
-    button:disabled{
-      opacity:0.5;
-      cursor:not-allowed;
-      box-shadow:none;
-    }
-
-    .status{
-      margin-top:8px;
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    .review-box{
-      margin-top:18px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
-      border-radius:10px;
-      padding:18px;
-      display:flex;
-      gap:16px;
-      align-items:flex-start;
-      border:1px solid rgba(255,255,255,0.02);
-    }
-    .icon{
-      width:56px;
-      height:56px;
-      min-width:56px;
-      border-radius:10px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:22px;
-      background:rgba(255,255,255,0.02);
-      color:var(--muted);
-    }
-    .review-content{
-      flex:1;
-    }
-    .review-text{
-      font-size:15px;
-      line-height:1.5;
-      color:#e6eef8;
-      margin:0 0 8px 0;
-      white-space:pre-wrap;
-      word-break:break-word;
-    }
-    .meta{
-      display:flex;
-      gap:12px;
-      align-items:center;
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    .error{
-      color:var(--danger);
-      margin-top:10px;
-      font-weight:600;
-    }
-    .hint{
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    footer{
-      margin-top:18px;
-      color:var(--muted);
-      font-size:13px;
-      text-align:center;
-    }
-
-    @media (max-width:640px){
-      .controls{flex-direction:column;align-items:stretch}
-      input[type="text"]{min-width:100%}
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Sentiment & Noun Analyzer</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background: #f5f5f5; padding: 20px; border-radius: 10px; }
+        input, button { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #007bff; color: white; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .review-box { background: white; padding: 15px; border: 1px solid #ddd; margin: 10px 0; }
+        .result { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 5px; }
+        .noun-highlight { background-color: yellow; font-weight: bold; }
+    </style>
+    <!-- Подключаем библиотеку для NLP -->
+    <script src="https://unpkg.com/compromise@14.0.0/builds/compromise.min.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card" role="main">
-      <header>
-        <div>
-          <h1>DeepSeek Chat — Random Review Sentiment</h1>
-          <p>Load reviews_test.tsv (must be in same repo). Uses Hugging Face Inference API and Papa Parse.</p>
-        </div>
-      </header>
-
-      <div class="controls" id="controls">
-        <div class="input-group" style="flex:1;">
-          <label for="hfToken" class="hint" style="margin-right:8px;"><i class="fa-solid fa-key"></i></label>
-          <input id="hfToken" type="text" placeholder="Hugging Face API token (optional for free tier)" aria-label="Hugging Face API token">
+    <div class="container">
+        <h1>Review Sentiment & Noun Analyzer</h1>
+        
+        <!-- Hugging Face API Setup -->
+        <div class="api-setup">
+            <h3>Hugging Face API Setup</h3>
+            <input type="password" id="apiToken" placeholder="Enter your Hugging Face API Token" style="width: 300px;">
+            <p><small>Your token is stored only in your browser and is never sent to our servers.</small></p>
         </div>
 
-        <div style="display:flex; gap:8px;">
-          <button id="randomBtn">Analyze Random Review</button>
-          <button id="reloadBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);box-shadow:none;">Reload TSV</button>
+        <!-- Analysis Controls -->
+        <div class="controls">
+            <button onclick="loadRandomReview()">Load Random Review</button>
+            <button onclick="analyzeSentiment()">Analyze Sentiment</button>
+            <button onclick="countNouns()">Count Nouns</button>
         </div>
-      </div>
 
-      <div class="status" id="status">Loading reviews_test.tsv...</div>
-
-      <div id="reviewArea" style="display:none;">
-        <div class="review-box" id="reviewBox">
-          <div class="icon" id="sentIcon"><i class="fa-solid fa-spinner fa-pulse"></i></div>
-          <div class="review-content">
-            <p class="review-text" id="reviewText">—</p>
-            <div class="meta">
-              <span id="labelText">Label: —</span>
-              <span id="scoreText">Score: —</span>
-              <span id="sourceText" style="margin-left:auto;" class="hint">Model: siebert/sentiment-roberta-large-english</span>
-            </div>
-          </div>
+        <!-- Display Areas -->
+        <div class="review-box">
+            <h3>Selected Review:</h3>
+            <div id="reviewText">Click "Load Random Review" to load a review.</div>
         </div>
-        <div class="error" id="error" style="display:none;"></div>
-      </div>
 
-      <footer>
-        Make sure reviews_test.tsv is present in the repository root. TSV must have a "text" column.
-      </footer>
+        <div class="result">
+            <h3>Analysis Results:</h3>
+            <div id="sentimentResult">Sentiment will appear here</div>
+            <div id="nounResult">Noun analysis will appear here</div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>How to get a Hugging Face API Token:</h3>
+            <ol>
+                <li>Go to huggingface.co and create a free account</li>
+                <li>Navigate to your profile settings and access tokens section</li>
+                <li>Generate a new token with read permissions</li>
+                <li>Copy the token and paste it in the field above</li>
+            </ol>
+        </div>
     </div>
-  </div>
 
-  <script src="app.js"></script>
+    <script>
+        let currentReview = '';
+        let reviews = [];
+
+        // Загружаем тестовые отзывы
+        async function loadReviews() {
+            // Пример отзывов - в реальном приложении загружай из TSV файла
+            reviews = [
+                "McVitie's digestive biscuits are great - not nearly as sweet as competitors. Biggest problem is how many are broken by the time they get to you.",
+                "I love lemon grass tea! I love this soup! Going to double my order on the next one I make, this one is so good.",
+                "The product quality is excellent but the delivery service was terrible. The package arrived damaged and items were missing.",
+                "This is the best purchase I've made all year. The quality exceeds expectations and customer service was outstanding.",
+                "Disappointed with the product. It broke after first use and customer support was unhelpful."
+            ];
+        }
+
+        // Загружаем случайный отзыв
+        function loadRandomReview() {
+            if (reviews.length === 0) loadReviews();
+            const randomIndex = Math.floor(Math.random() * reviews.length);
+            currentReview = reviews[randomIndex];
+            document.getElementById('reviewText').textContent = currentReview;
+            document.getElementById('sentimentResult').textContent = 'Sentiment will appear here';
+            document.getElementById('nounResult').textContent = 'Noun analysis will appear here';
+        }
+
+        // Анализ тональности
+        async function analyzeSentiment() {
+            const apiToken = document.getElementById('apiToken').value;
+            if (!apiToken) {
+                alert('Please enter your Hugging Face API Token');
+                return;
+            }
+
+            if (!currentReview) {
+                alert('Please load a review first');
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment",
+                    {
+                        headers: { Authorization: `Bearer ${apiToken}` },
+                        method: "POST",
+                        body: JSON.stringify({ inputs: currentReview }),
+                    }
+                );
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('sentimentResult').textContent = `Error: ${result.error}`;
+                    return;
+                }
+
+                // Обрабатываем результат
+                const sentiment = result[0];
+                const topSentiment = sentiment.reduce((prev, current) => 
+                    (prev.score > current.score) ? prev : current
+                );
+                
+                document.getElementById('sentimentResult').innerHTML = 
+                    `<strong>Sentiment:</strong> ${topSentiment.label} <br>
+                     <strong>Confidence:</strong> ${(topSentiment.score * 100).toFixed(2)}%`;
+
+            } catch (error) {
+                document.getElementById('sentimentResult').textContent = `API Error: ${error.message}`;
+            }
+        }
+
+        // Подсчет существительных
+        function countNouns() {
+            if (!currentReview) {
+                alert('Please load a review first');
+                return;
+            }
+
+            // Используем Compromise.js для NLP
+            const doc = window.nlp(currentReview);
+            const nouns = doc.nouns().out('array');
+            
+            // Подсвечиваем существительные в тексте
+            let highlightedText = currentReview;
+            nouns.forEach(noun => {
+                highlightedText = highlightedText.replace(
+                    new RegExp(noun.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+                    `<span class="noun-highlight">${noun}</span>`
+                );
+            });
+
+            document.getElementById('reviewText').innerHTML = highlightedText;
+            document.getElementById('nounResult').innerHTML = 
+                `<strong>Nouns Found:</strong> ${nouns.length} <br>
+                 <strong>List:</strong> ${nouns.join(', ')} <br>
+                 <small>Nouns are highlighted in yellow above</small>`;
+        }
+
+        // Инициализация
+        window.onload = loadReviews;
+    </script>
 </body>
 </html>
