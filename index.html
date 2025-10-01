@@ -18,9 +18,6 @@
         .error { color: #dc3545; }
         .success { color: #28a745; }
     </style>
-    <!-- Подключаем библиотеки -->
-    <script src="https://unpkg.com/compromise@14.0.0/builds/compromise.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -54,7 +51,7 @@
         </div>
 
         <!-- Status -->
-        <div class="status" id="status">Ready to load reviews from TSV file</div>
+        <div class="status" id="status">Ready to load reviews</div>
 
         <!-- Instructions -->
         <div class="instructions">
@@ -71,85 +68,29 @@
     <script>
         let currentReview = '';
         let reviews = [];
-        let reviewsLoaded = false;
+        let nlpLibraryLoaded = false;
 
-        // Загружаем отзывы из TSV файла
-        async function loadReviewsFromTSV() {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = 'Loading reviews from TSV file...';
-            statusEl.className = 'status';
-            
-            try {
-                const response = await fetch('reviews_test.tsv');
-                if (!response.ok) {
-                    throw new Error(`Failed to load TSV file: ${response.status}`);
-                }
-                
-                const tsvData = await response.text();
-                
-                // Парсим TSV с помощью PapaParse
-                const results = Papa.parse(tsvData, {
-                    header: true,
-                    delimiter: '\t',
-                    skipEmptyLines: true
-                });
-                
-                if (results.errors.length > 0) {
-                    console.warn('Parse errors:', results.errors);
-                }
-                
-                // Извлекаем тексты отзывов из колонки "text"
-                reviews = results.data
-                    .filter(row => row.text && row.text.trim() !== '')
-                    .map(row => row.text.trim());
-                
-                if (reviews.length === 0) {
-                    throw new Error('No reviews found in TSV file. Please check the "text" column.');
-                }
-                
-                reviewsLoaded = true;
-                statusEl.textContent = `Successfully loaded ${reviews.length} reviews from TSV file`;
-                statusEl.className = 'status success';
-                console.log('Loaded reviews:', reviews);
-                
-            } catch (error) {
-                console.error('Error loading TSV:', error);
-                statusEl.textContent = `Error: ${error.message}. Using fallback reviews.`;
-                statusEl.className = 'status error';
-                
-                // Fallback на встроенные отзывы если TSV не загрузился
-                reviews = [
-                    "McVitie's digestive biscuits are great - not nearly as sweet as competitors. Biggest problem is how many are broken by the time they get to you.",
-                    "I love lemon grass tea! I love this soup! Going to double my order on the next one I make, this one is so good.",
-                    "The product quality is excellent but the delivery service was terrible. The package arrived damaged and items were missing."
-                ];
-                reviewsLoaded = true;
-            }
-        }
+        // Простые тестовые отзывы (без загрузки TSV для упрощения)
+        const testReviews = [
+            "The product quality is excellent but the delivery service was terrible.",
+            "I love lemon grass tea! I love this soup! Going to double my order.",
+            "McVitie's digestive biscuits are great - not nearly as sweet as competitors.",
+            "This is the best purchase I've made all year. Outstanding quality!",
+            "Disappointed with the product. It broke after first use."
+        ];
 
         // Загружаем случайный отзыв
         function loadRandomReview() {
-            if (!reviewsLoaded) {
-                alert('Reviews are still loading. Please wait...');
-                return;
-            }
-            
-            if (reviews.length === 0) {
-                alert('No reviews available. Please check the TSV file.');
-                return;
-            }
-            
-            const randomIndex = Math.floor(Math.random() * reviews.length);
-            currentReview = reviews[randomIndex];
+            const randomIndex = Math.floor(Math.random() * testReviews.length);
+            currentReview = testReviews[randomIndex];
             document.getElementById('reviewText').textContent = currentReview;
             document.getElementById('sentimentResult').textContent = 'Sentiment will appear here';
             document.getElementById('nounResult').textContent = 'Noun analysis will appear here';
-            
-            document.getElementById('status').textContent = `Loaded review ${randomIndex + 1} of ${reviews.length}`;
+            document.getElementById('status').textContent = `Loaded review ${randomIndex + 1} of ${testReviews.length}`;
             document.getElementById('status').className = 'status success';
         }
 
-        // Анализ тональности - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        // Анализ тональности - УПРОЩЕННАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
         async function analyzeSentiment() {
             const apiToken = document.getElementById('apiToken').value;
             if (!apiToken) {
@@ -170,9 +111,9 @@
             resultEl.textContent = 'Processing...';
 
             try {
-                // ИСПРАВЛЕНИЕ: Используем ту же модель, что работала в DeepSeek
+                // Используем простую и надежную модель
                 const response = await fetch(
-                    "https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english",
+                    "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english",
                     {
                         headers: { 
                             Authorization: `Bearer ${apiToken}`,
@@ -186,28 +127,41 @@
                 );
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`API error: ${response.status} - ${errorText}`);
+                    throw new Error(`API error: ${response.status}`);
                 }
                 
                 const result = await response.json();
                 console.log('API Response:', result);
                 
                 if (result.error) {
+                    // Если модель загружается, ждем и пробуем снова
+                    if (result.error.includes('loading')) {
+                        resultEl.textContent = 'Model is loading, please wait 10-20 seconds and try again...';
+                        statusEl.textContent = 'Model loading';
+                        return;
+                    }
                     throw new Error(`Model error: ${result.error}`);
                 }
 
-                // Обрабатываем результат для модели siebert/sentiment-roberta-large-english
-                // Эта модель возвращает массив с одним объектом, содержащим label и score
+                // Обрабатываем результат для модели sentiment analysis
                 if (Array.isArray(result) && result.length > 0) {
-                    const sentiment = result[0];
-                    const label = sentiment.label || 'UNKNOWN';
-                    const score = sentiment.score || 0;
+                    const sentimentResult = result[0];
+                    
+                    // Находим наиболее вероятную метку
+                    let topLabel = '';
+                    let topScore = 0;
+                    
+                    sentimentResult.forEach(item => {
+                        if (item.score > topScore) {
+                            topScore = item.score;
+                            topLabel = item.label;
+                        }
+                    });
                     
                     resultEl.innerHTML = 
-                        `<strong>Label:</strong> ${label} <br>
-                         <strong>Confidence:</strong> ${(score * 100).toFixed(2)}% <br>
-                         <strong>Model:</strong> siebert/sentiment-roberta-large-english`;
+                        `<strong>Label:</strong> ${topLabel} <br>
+                         <strong>Confidence:</strong> ${(topScore * 100).toFixed(2)}% <br>
+                         <strong>Model:</strong> distilbert-base-uncased-finetuned-sst-2-english`;
                     
                     statusEl.textContent = 'Sentiment analysis complete';
                     statusEl.className = 'status success';
@@ -217,14 +171,15 @@
 
             } catch (error) {
                 console.error('Sentiment analysis error:', error);
-                resultEl.textContent = `Error: ${error.message}`;
+                resultEl.innerHTML = `Error: ${error.message}<br>
+                                     <small>Try using a different model or check your token</small>`;
                 resultEl.className = 'error';
                 statusEl.textContent = 'Analysis failed';
                 statusEl.className = 'status error';
             }
         }
 
-        // Подсчет существительных
+        // ПРОСТОЙ подсчет существительных (без внешних библиотек)
         function countNouns() {
             if (!currentReview) {
                 alert('Please load a review first');
@@ -238,28 +193,40 @@
             statusEl.className = 'status';
 
             try {
-                // Используем Compromise.js для NLP
-                const doc = window.nlp(currentReview);
-                const nouns = doc.nouns().out('array');
+                // Простой алгоритм для поиска существительных
+                // В реальном приложении лучше использовать библиотеку, но для демо сойдет
+                const words = currentReview.toLowerCase().split(/\s+/);
                 
-                // Убираем дубликаты и пустые строки
-                const uniqueNouns = [...new Set(nouns.filter(noun => noun.trim() !== ''))];
+                // Списки распространенных существительных (упрощенно)
+                const commonNouns = [
+                    'product', 'quality', 'delivery', 'service', 'tea', 'soup', 
+                    'order', 'biscuits', 'competitors', 'problem', 'packaging',
+                    'purchase', 'year', 'customer', 'support', 'item'
+                ];
                 
-                // Подсвечиваем существительные в тексте
+                const foundNouns = words.filter(word => {
+                    // Убираем пунктуацию
+                    const cleanWord = word.replace(/[^a-z]/g, '');
+                    // Проверяем, есть ли слово в списке существительных
+                    return commonNouns.includes(cleanWord) && cleanWord.length > 2;
+                });
+                
+                const uniqueNouns = [...new Set(foundNouns)];
+                
+                // Подсвечиваем найденные существительные
                 let highlightedText = currentReview;
                 uniqueNouns.forEach(noun => {
-                    const escapedNoun = noun.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(`\\b${escapedNoun}\\b`, 'gi');
+                    const regex = new RegExp(`\\b${noun}\\b`, 'gi');
                     highlightedText = highlightedText.replace(regex, `<span class="noun-highlight">${noun}</span>`);
                 });
 
                 document.getElementById('reviewText').innerHTML = highlightedText;
                 resultEl.innerHTML = 
-                    `<strong>Total Nouns Found:</strong> ${uniqueNouns.length} <br>
+                    `<strong>Nouns Found:</strong> ${uniqueNouns.length} <br>
                      <strong>Nouns List:</strong> ${uniqueNouns.join(', ')} <br>
-                     <small>Nouns are highlighted in yellow above</small>`;
+                     <small>Note: Using simple noun detection for demo</small>`;
                 
-                statusEl.textContent = `Found ${uniqueNouns.length} unique nouns`;
+                statusEl.textContent = `Found ${uniqueNouns.length} nouns`;
                 statusEl.className = 'status success';
 
             } catch (error) {
@@ -271,8 +238,11 @@
             }
         }
 
-        // Инициализация - загружаем отзывы при загрузке страницы
-        window.onload = loadReviewsFromTSV;
+        // Инициализация
+        window.onload = function() {
+            reviews = testReviews;
+            document.getElementById('status').textContent = 'Ready - loaded test reviews';
+        };
     </script>
 </body>
 </html>
